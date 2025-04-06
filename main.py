@@ -1,5 +1,6 @@
 from collections import deque
 import math
+import itertools
 
 class GameQueue:
     def __init__(self, k, alpha=1.0, p=2, q=2):
@@ -19,15 +20,29 @@ class GameQueue:
         if len(self.queue) < 2 * self.k:
             return None, None
 
-        selected_players = [self.queue.popleft() for _ in range(2 * self.k)]
-        player_ids = [player["id"] for player in selected_players]
-        ratings = [player["rating"] for player in selected_players]
+        best_ids = None
+        best_imbalance = float('inf')
+        queue_list = list(self.queue)
 
-        team1 = ratings[:self.k]
-        team2 = ratings[self.k:]
+        for group in itertools.combinations(queue_list, 2 * self.k):
+            for team1_ids in itertools.combinations(group, self.k):
+                team1 = list(team1_ids)
+                team2 = [p for p in group if p not in team1]
 
-        imbalance = self.calculate_imbalance(team1, team2)
-        return player_ids, imbalance
+                ratings1 = [p["rating"] for p in team1]
+                ratings2 = [p["rating"] for p in team2]
+
+                imbalance = self.calculate_imbalance(ratings1, ratings2)
+                if imbalance < best_imbalance:
+                    best_imbalance = imbalance
+                    best_ids = [p["id"] for p in team1 + team2]
+                    best_players = team1 + team2
+
+        # Remove selected players from the queue
+        selected_ids = set(best_ids)
+        self.queue = deque(p for p in self.queue if p["id"] not in selected_ids)
+
+        return best_ids, best_imbalance
 
     def calculate_imbalance(self, team1, team2):
         # p-fairness
@@ -57,8 +72,12 @@ def main():
         ("enqueue", 2100, "12:54:35.567"),
         ("enqueue", 2300, "12:54:36.567"),
         ("enqueue", 2500, "12:54:37.567"),
+        ("enqueue", 3000, "12:54:38.567"),
         ("enqueue", 2000, "12:54:38.567"),
-        ("Make_game", "12:55:00.000")
+        ("Make_game", "12:55:00.000"),
+        ("enqueue", 2300, "12:55:38.567"),
+        ("enqueue", 1000, "12:55:38.567"),
+        ("Make_game", "12:56:00.000"),
     ]
 
     current_id = 0
